@@ -108,15 +108,22 @@ function getInitialSeedSessions(): RecordedInterviewRound[] {
 }
 
 /**
- * Load all recorded interview rounds from LocalStorage & Supabase DB
+ * Load all recorded interview rounds from LocalStorage & Supabase DB (Candidate Isolated)
  */
 export async function getRecordedSessions(candidateEmailOrName?: string): Promise<RecordedInterviewRound[]> {
   let sessions: RecordedInterviewRound[] = [];
 
-  // 1. Load local persistent sessions
+  if (!candidateEmailOrName || candidateEmailOrName.trim().length === 0) {
+    return [];
+  }
+
+  const normalizedUser = candidateEmailOrName.trim().toLowerCase();
+  const userStorageKey = `${STORAGE_KEY}_${normalizedUser.replace(/[^a-z0-9]/g, '_')}`;
+
+  // 1. Load candidate-isolated local persistent sessions
   if (typeof window !== 'undefined') {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(userStorageKey);
       if (raw) {
         sessions = JSON.parse(raw);
       }
@@ -131,18 +138,19 @@ export async function getRecordedSessions(candidateEmailOrName?: string): Promis
       const { data, error } = await supabase
         .from('interview_rounds')
         .select('*')
+        .eq('candidate_name', candidateEmailOrName)
         .order('completed_at', { ascending: false });
 
       if (!error && data && data.length > 0) {
         const supabaseSessions: RecordedInterviewRound[] = data.map((row: any) => ({
           id: row.id || `sb-${Date.parse(row.completed_at)}`,
-          candidateName: row.candidate_name || 'Candidate',
+          candidateName: row.candidate_name || candidateEmailOrName,
           roleTitle: row.role_title || 'Software Engineer',
           track: (row.track as InterviewTrack) || 'technical',
           completedAt: new Date(row.completed_at).getTime(),
           durationFormatted: row.duration_formatted || '15:00',
           answerCount: row.answer_count || 3,
-          overallScore: row.overall_score || 8.0,
+          overallScore: row.overall_score || 0,
           recommendation: row.recommendation || 'Passed',
           skillsSummary: row.skills_summary || {},
         }));
@@ -157,8 +165,15 @@ export async function getRecordedSessions(candidateEmailOrName?: string): Promis
     }
   }
 
-  // Filter out any legacy hardcoded seed sessions
-  sessions = sessions.filter((s) => s.id && !s.id.startsWith('session-'));
+  // Filter out any legacy hardcoded seed sessions or sessions belonging to other candidates
+  sessions = sessions.filter((s) => {
+    if (!s.id || s.id.startsWith('session-')) return false;
+    if (!s.candidateName) return false;
+    const nameLower = s.candidateName.trim().toLowerCase();
+    const userPrefix = normalizedUser.split('@')[0];
+    const candidatePrefix = nameLower.split('@')[0];
+    return nameLower === normalizedUser || (userPrefix.length > 2 && userPrefix === candidatePrefix);
+  });
 
   // Sort descending by completion time
   return sessions.sort((a, b) => b.completedAt - a.completedAt);
@@ -173,12 +188,15 @@ export async function recordNewInterviewSession(session: Omit<RecordedInterviewR
     id: `sess-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
   };
 
-  // 1. Save to LocalStorage
+  const candidateKey = (session.candidateName || 'guest').trim().toLowerCase();
+  const userStorageKey = `${STORAGE_KEY}_${candidateKey.replace(/[^a-z0-9]/g, '_')}`;
+
+  // 1. Save to candidate-isolated LocalStorage
   if (typeof window !== 'undefined') {
     try {
-      const existing = await getRecordedSessions();
+      const existing = await getRecordedSessions(session.candidateName);
       const updated = [newSession, ...existing];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+      localStorage.setItem(userStorageKey, JSON.stringify(updated));
     } catch (e) {
       console.error('Failed to save session to storage:', e);
     }
@@ -332,7 +350,7 @@ export function computeRealProfileStats(
     },
   ];
 
-  // Dynamic Skill Scores Aggregation
+  // Dynamic Skill Scores Aggregation with NaN Protection
   let techScore = 0;
   let problemScore = 0;
   let commScore = 0;
@@ -341,23 +359,35 @@ export function computeRealProfileStats(
 
   if (sessions.length > 0) {
     let tSum = 0, pSum = 0, cSum = 0, prSum = 0, lSum = 0, count = 0;
+
+    const getSkillValue = (summary: Record<string, number | string> | undefined, keys: string[]): number => {
+      if (!summary) return 0;
+      for (const k of keys) {
+        if (summary[k] !== undefined && summary[k] !== null) {
+          const val = Number(summary[k]);
+          if (!isNaN(val)) return val;
+        }
+      }
+      return 0;
+    };
+
     sessions.forEach((s) => {
       if (s.skillsSummary) {
         count++;
-        tSum += Number(s.skillsSummary['Technical'] || 0);
-        pSum += Number(s.skillsSummary['Problem Solving'] || 0);
-        cSum += Number(s.skillsSummary['Communication'] || 0);
-        prSum += Number(s.skillsSummary['Product Thinking'] || 0);
-        lSum += Number(s.skillsSummary['Leadership'] || 0);
+        tSum += getSkillValue(s.skillsSummary, ['Technical', 'react', 'React', 'performance', 'Performance']);
+        pSum += getSkillValue(s.skillsSummary, ['Problem Solving', 'problem_solving', 'Problem_solving', 'ProblemSolving']);
+        cSum += getSkillValue(s.skillsSummary, ['Communication', 'communication', 'Communication']);
+        prSum += getSkillValue(s.skillsSummary, ['Product Thinking', 'product_thinking', 'ProductThinking', 'product']);
+        lSum += getSkillValue(s.skillsSummary, ['Leadership', 'leadership', 'Leadership', 'manager']);
       }
     });
 
     if (count > 0) {
-      techScore = Math.min(99, Math.round(tSum / count));
-      problemScore = Math.min(99, Math.round(pSum / count));
-      commScore = Math.min(99, Math.round(cSum / count));
-      prodScore = Math.min(99, Math.round(prSum / count));
-      leadScore = Math.min(99, Math.round(lSum / count));
+      techScore = Math.min(99, Math.max(0, Math.round(tSum / count) || 0));
+      problemScore = Math.min(99, Math.max(0, Math.round(pSum / count) || 0));
+      commScore = Math.min(99, Math.max(0, Math.round(cSum / count) || 0));
+      prodScore = Math.min(99, Math.max(0, Math.round(prSum / count) || 0));
+      leadScore = Math.min(99, Math.max(0, Math.round(lSum / count) || 0));
     }
   }
 

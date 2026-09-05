@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/lib/supabase';
 import { 
   Sparkles, 
   Clock, 
@@ -68,14 +69,26 @@ export function InterviewIntakeModal({
 }: InterviewIntakeModalProps) {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
-  const [candidateName, setCandidateName] = useState<string>(demoCandidate.name);
+  const [candidateName, setCandidateName] = useState<string>('');
   const [roleTitle, setRoleTitle] = useState('Senior Frontend Developer');
   const [track, setTrack] = useState<InterviewTrack>(initialTrack);
   const [durationMinutes, setDurationMinutes] = useState(15);
-  const [contextNotes, setContextNotes] = useState<string>(
-    '5+ years engineering high-throughput React & Next.js web applications. Led ShopFlow storefront optimization reducing render latency by 61%. Deep expertise in performance, DOM reconciliation, state management, and edge streaming.',
-  );
+  const [contextNotes, setContextNotes] = useState<string>('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        const u = session?.user;
+        if (u) {
+          const name = u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split('@')[0] || u.email || 'Candidate';
+          setCandidateName(name);
+        } else if (!candidateName || candidateName === demoCandidate.name) {
+          setCandidateName('Candidate');
+        }
+      });
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

@@ -38,15 +38,9 @@ const AgoraProvider = dynamic(
         // one RTC client is ever created per session (useMemo creates two in StrictMode).
         const clientRef = useRef<ReturnType<
           typeof AgoraRTC.createClient
-        > | null>(null);
-        if (!clientRef.current) {
-          clientRef.current = AgoraRTC.createClient({
-            mode: 'rtc',
-            codec: 'vp8',
-          });
-        }
+      default: function Provider({ children }: { children: React.ReactNode }) {
         return (
-          <AgoraRTCProvider client={clientRef.current}>
+          <AgoraRTCProvider client={client}>
             {children}
           </AgoraRTCProvider>
         );
@@ -61,12 +55,41 @@ export default function LandingPage() {
   const [showScorecard, setShowScorecard] = useState(false);
   const [selectedTrack, setSelectedTrack] = useState<InterviewTrack>('technical');
   const [briefing, setBriefing] = useState<CandidateBriefingData>({
-    candidateName: demoCandidate.name,
-    roleTitle: 'Senior Frontend Developer',
+    candidateName: 'Candidate',
+    roleTitle: 'Software Engineer',
     track: 'technical',
     durationMinutes: 15,
-    contextNotes: demoCandidate.resumeSummary,
+    contextNotes: '',
   });
+
+  // Sync candidate identity with logged-in Supabase user if available
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const u = session?.user;
+      if (u) {
+        const name = u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split('@')[0] || u.email || 'Candidate';
+        setBriefing((prev) => ({
+          ...prev,
+          candidateName: name,
+          contextNotes: prev.contextNotes === demoCandidate.resumeSummary ? '' : prev.contextNotes,
+        }));
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      const u = session?.user;
+      if (u) {
+        const name = u.user_metadata?.full_name || u.user_metadata?.name || u.email?.split('@')[0] || u.email || 'Candidate';
+        setBriefing((prev) => ({
+          ...prev,
+          candidateName: name,
+          contextNotes: prev.contextNotes === demoCandidate.resumeSummary ? '' : prev.contextNotes,
+        }));
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Preload heavy modules on mount so they're already cached when the user
   // clicks "Start Interview" — eliminates the ~1.8s dynamic-import delay.

@@ -187,8 +187,9 @@ export function UserProfilePage({ onStartInterview }: UserProfilePageProps) {
   const [realSessions, setRealSessions] = useState<RecordedInterviewRound[]>([]);
 
   useEffect(() => {
-    // Fetch real interview sessions from database (Supabase + local DB)
-    getRecordedSessions(user?.email || undefined).then((sessions) => {
+    // Fetch real interview sessions from database (Supabase + local DB) for active user only
+    const candidateId = user?.email || user?.user_metadata?.full_name || user?.user_metadata?.name || undefined;
+    getRecordedSessions(candidateId).then((sessions) => {
       setRealSessions(sessions);
     });
   }, [user]);
