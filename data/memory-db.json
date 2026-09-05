@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "lastUpdated": 1788553232148,
+  "candidates": {
+    "abhishek singh": {
+      "candidateName": "Abhishek Singh",
+      "roleTitle": "Senior Frontend Developer",
+      "targetDurationMinutes": 5,
+      "backgroundNotes": "5+ years engineering high-throughput React & Next.js web applications. Led ShopFlow storefront optimization reducing render latency by 61%. Deep expertise in performance, DOM reconciliation, state management, and edge streaming.",
+      "lastUpdated": 1788553232148,
+      "rounds": [
+        {
+          "track": "technical",
+          "completedAt": 1788553232148,
+          "answerCount": 0,
+          "quotes": [],
+          "skillsSummary": {
+            "React": "unverified (0%)",
+            "JavaScript": "unverified (0%)",
+            "Performance": "unverified (0%)",
+            "Problem Solving": "unverified (0%)",
+            "Communication": "unverified (0%)"
+          },
+          "overallScore": 0,
+          "recommendation": "Insufficient evidence"
+        },
+        {
+          "track": "product",
+          "completedAt": 1788525999618,
+          "answerCount": 0,
+          "quotes": [],
+          "skillsSummary": {
+            "React": "unverified (0%)",
+            "JavaScript": "unverified (0%)",
+            "Performance": "unverified (0%)",
+            "Problem Solving": "unverified (0%)",
+            "Communication": "unverified (0%)"
+          },
+          "overallScore": 0,
+          "recommendation": "Insufficient evidence"
+        }
+      ]
+    },
+    "test candidate": {
+      "candidateName": "Test Candidate",
+      "roleTitle": "Software Engineer",
+      "lastUpdated": 1788552061294,
+      "rounds": [
+        {
+          "track": "technical",
+          "completedAt": 1788552061292,
+          "answerCount": 1,
+          "quotes": [
+            "Optimized rendering using memoization"
+          ],
+          "skillsSummary": {}
+        }
+      ]
+    },
+    "sahaj singh": {
+      "candidateName": "SAHAJ SIngh",
+      "roleTitle": "Staff Systems Architect",
+      "lastUpdated": 1788553232142,
+      "rounds": [
+        {
+          "track": "technical",
+          "completedAt": 1788553232138,
+          "answerCount": 0,
+          "quotes": [],
+          "skillsSummary": {
+            "React": "unverified (0%)",
+            "JavaScript": "unverified (0%)",
+            "Performance": "unverified (0%)",
+            "Problem Solving": "unverified (0%)",
+            "Communication": "unverified (0%)"
+          },
+          "overallScore": 0,
+          "recommendation": "Insufficient evidence"
+        }
+      ],
+      "targetDurationMinutes": 5,
+      "backgroundNotes": "5+ years engineering high-throughput React & Next.js web applications. Led ShopFlow storefront optimization reducing render latency by 61%. Deep expertise in performance, DOM reconciliation, state management, and edge streaming."
+    }
+  }
+}

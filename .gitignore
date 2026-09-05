@@ -1,0 +1,54 @@
+# Dependency directories
+node_modules/
+.pnpm-store/
+jspm_packages/
+web_modules/
+
+# Next.js build output & Vercel
+.next
+out
+.vercel
+/build
+dist
+
+# Environment variables & secrets (CRITICAL: NEVER COMMIT REAL KEYS)
+.env
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# TypeScript cache
+*.tsbuildinfo
+next-env.d.ts
+
+# Logs & Debugging
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Diagnostic reports & Coverage
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+coverage
+*.lcov
+.nyc_output
+
+# Temporary database files
+data/*.tmp.*
+*.tmp
+*.seed
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.cache
+.parcel-cache
+.eslintcache
+.stylelintcache
