@@ -105,21 +105,33 @@ const EVALUATION_RULES: EvidenceMatchRule[] = [
 ];
 
 const DONT_KNOW_PATTERNS = [
-  /i\s*(don't|dont)\s*know/i,
-  /no\s*idea/i,
-  /not\s*sure/i,
+  /i\s*(don't|dont|do\s*not)\s*know/i,
+  /no\s*(idea|clue|knowledge|experience)/i,
+  /(not|im\s*not|i\s*am\s*not)\s*sure/i,
   /\bidk\b/i,
   /\bdunno\b/i,
-  /have\s*no\s*clue/i,
+  /have\s*no\s*(clue|idea|knowledge)/i,
   /can't\s*answer/i,
   /cannot\s*answer/i,
-  /don't\s*have\s*experience/i,
-  /dont\s*have\s*experience/i,
+  /(don't|dont|do\s*not)\s*have\s*experience/i,
+  /haven't\s*(used|worked|done)/i,
+  /never\s*(used|worked|done)/i,
+  /hard\s*to\s*say/i,
+  /not\s*really/i,
+  /\b(nothing|none|skip|pass|nope|nah)\b/i,
 ];
 
 export function isNegativeOrNonAnswer(text: string): boolean {
   if (!text || text.trim().length === 0) return true;
   return DONT_KNOW_PATTERNS.some((pattern) => pattern.test(text));
+}
+
+export function isSuperficialOrBriefAnswer(text: string): boolean {
+  if (!text || text.trim().length === 0) return true;
+  const trimmed = text.trim();
+  const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+  // An answer is superficial if it is under 35 characters or under 8 words without technical depth
+  return trimmed.length < 35 || wordCount < 8;
 }
 
 export function extractEvidenceFromTurn(options: {
@@ -136,6 +148,9 @@ export function extractEvidenceFromTurn(options: {
     return updates;
   }
 
+  // Check if answer is too brief/superficial (e.g. "i used javascript")
+  const isBrief = isSuperficialOrBriefAnswer(candidateAnswer);
+
   // Find candidate sentences for quote selection
   const sentences = candidateAnswer
     .split(/(?<=[.!?])\s+/)
@@ -145,7 +160,8 @@ export function extractEvidenceFromTurn(options: {
   for (const rule of EVALUATION_RULES) {
     const matchingKeywords = rule.keywords.filter((kw) => lowerAnswer.includes(kw));
 
-    if (matchingKeywords.length >= 2 || (matchingKeywords.length >= 1 && candidateAnswer.length > 20)) {
+    // Require at least 2 matching keywords OR (1 keyword + at least 45 chars detailed answer)
+    if (matchingKeywords.length >= 2 || (matchingKeywords.length >= 1 && candidateAnswer.length >= 45)) {
       // Find the best sentence containing the keywords
       const bestSentence =
         sentences.find((s) => matchingKeywords.some((kw) => s.toLowerCase().includes(kw))) ??
@@ -157,18 +173,24 @@ export function extractEvidenceFromTurn(options: {
       const verifiedQuote = isVerbatim ? bestSentence : undefined;
 
       const current = currentSkills[rule.skillId];
+      // Brief responses get capped at 'partial' with low strength (0.25 max)
+      const effectiveState: EvidenceState = isBrief ? 'partial' : rule.state;
+      const effectiveStrength: number = isBrief ? Math.min(0.25, rule.strength) : rule.strength;
+
       const rank = { unverified: 0, partial: 1, proven: 2 };
       const currentRank = rank[current?.state ?? 'unverified'];
-      const newRank = rank[rule.state];
+      const newRank = rank[effectiveState];
 
       if (newRank >= currentRank) {
         updates[rule.skillId] = {
           skillId: rule.skillId,
           label: rule.skillId.charAt(0).toUpperCase() + rule.skillId.slice(1),
-          state: rule.state,
-          strength: Math.max(current?.strength ?? 0, rule.strength),
+          state: effectiveState,
+          strength: Math.max(current?.strength ?? 0, effectiveStrength),
           quote: verifiedQuote ?? current?.quote,
-          reason: rule.reason,
+          reason: isBrief
+            ? 'Candidate mentioned tool/topic briefly without technical explanation or trade-off depth.'
+            : rule.reason,
           updatedAtTurn: turnNumber,
           timestamp: Date.now(),
         };

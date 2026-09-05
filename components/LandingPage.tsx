@@ -356,22 +356,24 @@ export default function LandingPage() {
     // Record completed session to DB & profile activity stats
     try {
       const { recordNewInterviewSession } = await import('@/lib/interview/profile-db-service');
+      const realScore = scorecard?.overallScore !== undefined
+        ? (scorecard.overallScore > 10 ? scorecard.overallScore / 10 : scorecard.overallScore)
+        : 2.0;
+
+      const realSkills = scorecard?.skills
+        ? Object.fromEntries(scorecard.skills.map((s) => [s.label || s.skillId, Math.round(s.strength)]))
+        : { Technical: 20, 'Problem Solving': 20, Communication: 25, 'Product Thinking': 15, Leadership: 20 };
+
       await recordNewInterviewSession({
         candidateName: briefing.candidateName,
         roleTitle: briefing.roleTitle,
         track: selectedTrack,
         completedAt: Date.now(),
         durationFormatted: interviewDuration,
-        answerCount: transcriptMessages.length || 3,
-        overallScore: scorecard?.overallScore || 8.0,
-        recommendation: scorecard?.recommendation || 'Advance to Next Round',
-        skillsSummary: {
-          Technical: 84,
-          'Problem Solving': 80,
-          Communication: 78,
-          'Product Thinking': 65,
-          Leadership: 70,
-        },
+        answerCount: transcriptMessages.length || 0,
+        overallScore: realScore,
+        recommendation: scorecard?.recommendation || 'Do Not Advance • Insufficient Evidence',
+        skillsSummary: realSkills,
       });
     } catch (e) {
       console.warn('Failed to record session to profile db:', e);

@@ -76,7 +76,28 @@ export function FinalAssessment({
   ];
   const hrMatches = hrKeywords.filter((kw) => totalCandidateText.includes(kw));
 
-  const substantiveTurns = candidateTurns.filter((t) => t.text.trim().length > 15);
+  const isNegativeText = (text: string) => {
+    const lower = text.toLowerCase();
+    return (
+      /i\s*(don't|dont|do\s*not)\s*know/i.test(lower) ||
+      /no\s*(idea|clue|knowledge|experience)/i.test(lower) ||
+      /(not|im\s*not)\s*sure/i.test(lower) ||
+      /\b(idk|dunno|nah|nope|nothing|pass|skip)\b/i.test(lower) ||
+      /can't\s*answer/i.test(lower) ||
+      /haven't\s*used/i.test(lower) ||
+      /never\s*used/i.test(lower) ||
+      /hard\s*to\s*say/i.test(lower)
+    );
+  };
+
+  // Substantive turns must be at least 35 characters, 8+ words, and not a negative non-answer
+  const substantiveTurns = candidateTurns.filter((t) => {
+    const text = t.text.trim();
+    const words = text.split(/\s+/).filter(Boolean).length;
+    return text.length >= 35 && words >= 8 && !isNegativeText(text);
+  });
+
+  const negativeTurnsCount = candidateTurns.filter((t) => isNegativeText(t.text)).length;
 
   // Calculate scores strictly based on empirical candidate audio evidence
   let techScoreNum = 0.0;
@@ -87,41 +108,51 @@ export function FinalAssessment({
   let recommendationReason = 'No candidate microphone turns were recorded during this interview session.';
 
   if (candidateTurns.length > 0) {
-    if (scorecard?.overallScore) {
-      overallScoreNum = scorecard.overallScore;
-      techScoreNum = Math.min(9.8, Math.max(4.0, overallScoreNum + 0.3));
-      prodScoreNum = Math.min(9.5, Math.max(4.0, overallScoreNum - 0.2));
-      hrScoreNum = Math.min(9.6, Math.max(4.0, overallScoreNum + 0.1));
+    if (scorecard?.overallScore !== undefined) {
+      // Map scorecard overallScore (0..100) to 0.0..10.0 scale
+      const rawScore10 = scorecard.overallScore > 10 ? scorecard.overallScore / 10 : scorecard.overallScore;
+      overallScoreNum = Math.round(rawScore10 * 10) / 10;
+      techScoreNum = Math.round(Math.min(9.8, Math.max(1.0, overallScoreNum)) * 10) / 10;
+      prodScoreNum = Math.round(Math.min(9.5, Math.max(1.0, overallScoreNum)) * 10) / 10;
+      hrScoreNum = Math.round(Math.min(9.6, Math.max(1.0, overallScoreNum)) * 10) / 10;
+
+      if (scorecard.recommendation) {
+        recommendation = scorecard.recommendation;
+        recommendationReason = scorecard.recommendationReason || `${activeCandidateName} evaluated across panel competencies.`;
+      }
+    } else if (substantiveTurns.length === 0) {
+      // Zero substantive answers provided (e.g. candidate said "i don't know" or "i used javascript")
+      overallScoreNum = candidateTurns.length > 0 ? 2.0 : 1.0;
+      techScoreNum = candidateTurns.length > 0 ? 2.0 : 1.0;
+      prodScoreNum = candidateTurns.length > 0 ? 1.5 : 1.0;
+      hrScoreNum = candidateTurns.length > 0 ? 2.5 : 1.0;
+      recommendation = 'Do Not Advance • Non-Responsive / Insufficient Knowledge';
+      recommendationReason = `${activeCandidateName} provided brief or non-substantive responses (e.g. "I don't know" or short 2-3 word phrases) without explaining technical trade-offs, architecture, or product reasoning.`;
     } else {
-      // Calculate technical score
-      const baseTech = substantiveTurns.length >= 3 ? 7.2 : 5.8;
-      const techBonus = Math.min(2.5, techMatches.length * 0.3);
-      techScoreNum = Math.min(9.6, Math.max(4.5, Math.round((baseTech + techBonus) * 10) / 10));
+      // Proportional score calculation based on real substantive answers and technical depth
+      const techWeight = Math.min(1.0, (techMatches.length / 4) + (substantiveTurns.length / 5));
+      techScoreNum = Math.round(Math.min(9.5, 2.5 + (techWeight * 6.5)) * 10) / 10;
 
-      // Calculate product score
-      const baseProd = prodMatches.length >= 2 ? 7.0 : 5.5;
-      const prodBonus = Math.min(2.4, prodMatches.length * 0.35);
-      prodScoreNum = Math.min(9.4, Math.max(4.5, Math.round((baseProd + prodBonus) * 10) / 10));
+      const prodWeight = Math.min(1.0, (prodMatches.length / 3) + (substantiveTurns.length / 5));
+      prodScoreNum = Math.round(Math.min(9.2, 2.0 + (prodWeight * 6.8)) * 10) / 10;
 
-      // Calculate HR score
-      const baseHr = candidateTurns.length >= 4 ? 7.4 : 5.8;
-      const hrBonus = Math.min(2.2, hrMatches.length * 0.4);
-      hrScoreNum = Math.min(9.5, Math.max(4.5, Math.round((baseHr + hrBonus) * 10) / 10));
+      const hrWeight = Math.min(1.0, (hrMatches.length / 3) + (substantiveTurns.length / 5));
+      hrScoreNum = Math.round(Math.min(9.4, 2.5 + (hrWeight * 6.5)) * 10) / 10;
 
-      overallScoreNum = Math.round(((techScoreNum * 0.45) + (prodScoreNum * 0.35) + (hrScoreNum * 0.20)) * 10) / 10;
+      const penalty = negativeTurnsCount * 0.8;
+      overallScoreNum = Math.max(1.5, Math.round(((techScoreNum * 0.45) + (prodScoreNum * 0.35) + (hrScoreNum * 0.20) - penalty) * 10) / 10);
+
+      if (overallScoreNum >= 7.5 && substantiveTurns.length >= 3) {
+        recommendation = 'Strong Hire • Advance to Next Round';
+        recommendationReason = `${activeCandidateName} demonstrated verifiable technical competence (${techScoreNum}/10) across architecture and state management, coupled with practical product reasoning (${prodScoreNum}/10) over ${substantiveTurns.length} detailed audio responses (${totalWords} total words spoken).`;
+      } else if (overallScoreNum >= 5.0 && substantiveTurns.length >= 2) {
+        recommendation = 'Consider • Targeted Follow-up Required';
+        recommendationReason = `${activeCandidateName} completed ${substantiveTurns.length} substantive turns (${totalWords} words spoken), demonstrating foundational concepts but requiring deeper technical validation.`;
+      } else {
+        recommendation = 'Do Not Advance • Low Technical Depth';
+        recommendationReason = `${activeCandidateName} completed ${candidateTurns.length} turns (${substantiveTurns.length} substantive), but responses lacked required technical depth, trade-off analysis, and concrete architecture benchmarks.`;
+      }
     }
-
-    recommendation =
-      overallScoreNum >= 7.8
-        ? 'Strong Hire • Advance to Next Round'
-        : overallScoreNum >= 6.5
-        ? 'Consider • Recommend Cross-Functional Review'
-        : 'Targeted Technical Review Required';
-
-    recommendationReason =
-      overallScoreNum >= 7.0
-        ? `${activeCandidateName} demonstrated verifiable technical competence (${techScoreNum}/10) across component architecture and state management, coupled with practical product reasoning (${prodScoreNum}/10) over ${candidateTurns.length} spoken audio turns (${totalWords} total words spoken).`
-        : `${activeCandidateName} completed ${candidateTurns.length} interview turns (${totalWords} total words spoken). Demonstrates developing competence across core engineering and product requirements.`;
   }
 
   // Extract verbatim candidate quotes from transcript
