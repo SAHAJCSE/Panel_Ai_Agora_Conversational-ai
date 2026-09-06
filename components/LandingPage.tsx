@@ -218,6 +218,13 @@ export default function LandingPage() {
     }
     const activeTrack = activeBriefing.track || selectedTrack;
 
+    // Reset any previous session countdown so fresh duration is applied
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('panelai_round_progress');
+      } catch {}
+    }
+
     try {
       // 1. Fetch RTC token + channel
       const agoraResponse = await fetch('/api/generate-agora-token');
@@ -492,8 +499,7 @@ export default function LandingPage() {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-black flex flex-col items-center justify-center p-6 text-center">
         <Loader
-          size="lg"
-          title="Reconnecting to Interview..."
+          prefix="loading"
           subtitle="Restoring your active interview session, round progress, and live audio streams."
         />
       </div>
@@ -502,13 +508,23 @@ export default function LandingPage() {
 
   if (!showConversation && !showScorecard) {
     return (
-      <StitchLandingPage
-        isLoading={isLoading}
-        error={error}
-        selectedTrack={selectedTrack}
-        onSelectTrack={(track) => setSelectedTrack(track)}
-        onStartConversation={handleStartConversation}
-      />
+      <>
+        {isLoading && (
+          <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-black/85 backdrop-blur-xl animate-in fade-in duration-300">
+            <Loader
+              prefix="loading"
+              subtitle="Connecting AI panel & real-time audio streams..."
+            />
+          </div>
+        )}
+        <StitchLandingPage
+          isLoading={isLoading}
+          error={error}
+          selectedTrack={selectedTrack}
+          onSelectTrack={(track) => setSelectedTrack(track)}
+          onStartConversation={handleStartConversation}
+        />
+      </>
     );
   }
 
@@ -547,6 +563,9 @@ export default function LandingPage() {
                       agoraData={agoraData}
                       rtmClient={rtmClient}
                       currentTrack={selectedTrack}
+                      durationMinutes={briefing.durationMinutes}
+                      candidateName={briefing.candidateName}
+                      roleTitle={briefing.roleTitle}
                       onTokenWillExpire={handleTokenWillExpire}
                       onEndConversation={handleEndConversation}
                       onSwitchTrack={handleSwitchTrack}

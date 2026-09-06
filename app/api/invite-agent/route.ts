@@ -73,18 +73,22 @@ export async function POST(request: NextRequest) {
     // Select the appropriate agent pipeline ID based on track
     const techPipelineId =
       process.env.NEXT_AGORA_TECH_AGENT_ID || process.env.NEXT_AGORA_AGENT_ID;
-    const productPipelineId = process.env.NEXT_AGORA_PRODUCT_AGENT_ID;
-    // HR Manager agent pipeline provided by Agora configuration
+    const productPipelineId =
+      process.env.NEXT_AGORA_PRODUCT_AGENT_ID || process.env.NEXT_AGORA_AGENT_ID;
     const hrPipelineId =
-      process.env.NEXT_AGORA_HR_AGENT_ID || '6bb3610317724e3ea78058c355d1e1b5';
+      process.env.NEXT_AGORA_HR_AGENT_ID ||
+      process.env.NEXT_AGORA_AGENT_ID ||
+      '6bb3610317724e3ea78058c355d1e1b5';
 
-    let pipelineId: string | undefined;
-    if (interview_track === 'hiring_manager') {
-      pipelineId = hrPipelineId;
-    } else if (interview_track === 'product') {
-      pipelineId = productPipelineId;
-    } else {
-      pipelineId = techPipelineId;
+    let pipelineId: string | undefined = body.pipeline_id;
+    if (!pipelineId && !body.force_template) {
+      if (interview_track === 'hiring_manager') {
+        pipelineId = hrPipelineId;
+      } else if (interview_track === 'product') {
+        pipelineId = productPipelineId;
+      } else {
+        pipelineId = techPipelineId;
+      }
     }
 
     // Persist candidate briefing to local database & retrieve cross-round memory
@@ -103,35 +107,6 @@ export async function POST(request: NextRequest) {
     const memoryContext =
       context_memory || buildMemoryContextPrompt(candidate_name, interview_track);
 
-    // Build structured PanelAI technical, product, or HR interviewer prompt
-    const interviewerPrompt = buildInterviewerPrompt({
-      candidateName: candidate_name,
-      roleTitle: role_title,
-      track: interview_track,
-      resumeSummary: candidate_context,
-    });
-
-    const timeInstruction = duration_minutes
-      ? `\n\n# Time Constraints & Pacing\nThe interview session has a strict ${duration_minutes}-minute limit. Keep turns crisp and conclude gracefully within this timeframe.`
-      : '';
-
-    const combinedInstructions = `${interviewerPrompt.instructions}${timeInstruction}${
-      memoryContext ? `\n\n${memoryContext}` : ''
-    }`;
-
-    // Distinct voice per interviewer persona for rich panel experience
-    const ttsVoice =
-      interview_track === 'product'
-        ? 'shimmer' // Sarah Lin (Product)
-        : interview_track === 'hiring_manager'
-        ? 'nova'    // Elena Rostova (HR)
-        : 'alloy';  // Alex Chen (Technical)
-
-    const ttsEngine = new OpenAITTS({
-      model: 'tts-1',
-      voice: ttsVoice,
-    });
-
     // Unique Agent UID per track to prevent RTC join collisions during transitions
     const resolvedAgentUid =
       interview_track === 'product'
@@ -142,62 +117,114 @@ export async function POST(request: NextRequest) {
 
     let agent: Agent;
 
-    // Direct ultra-low latency pipeline:
-    // Deepgram (Nova-3 streaming STT) → OpenAI (gpt-4o-mini fast LLM) → OpenAI (tts-1 streaming TTS)
-    agent = new Agent({
-      client,
-      instructions: combinedInstructions,
-      greeting: interviewerPrompt.greeting,
-      failureMessage: 'One moment, let me reconnect.',
-      maxHistory: 30,
-      // Optimized VAD for ultra-fast, snappy conversational voice turns
-      turnDetection: {
-        config: {
-          speech_threshold: 0.5,
-          start_of_speech: {
-            mode: 'vad',
-            vad_config: {
-              interrupt_duration_ms: 140, // Quick natural interruption
-              prefix_padding_ms: 200,    // Low audio buffer overhead
+    if (pipelineId) {
+      console.log(
+        `[invite-agent] Launching Agora Console agent with pipelineId: ${pipelineId} for track: ${interview_track}`,
+      );
+      // When pipelineId is set from Agora Console, we let Agora use the system prompt,
+      // LLM, TTS, STT, and greeting configured directly in the Agora Console.
+      // We do NOT provide `instructions`, `greeting`, or `.withLlm()` here, as doing so
+      // would overwrite the console-configured prompt and persona with the code template.
+      agent = new Agent({
+        client,
+        pipelineId,
+        advancedFeatures: { enable_rtm: true, enable_tools: true },
+        parameters: {
+          audio_scenario: 'chorus',
+          data_channel: 'rtm',
+          enable_error_message: true,
+          enable_metrics: true,
+        },
+      });
+    } else {
+      console.log(
+        `[invite-agent] No pipeline ID configured, falling back to local template for track: ${interview_track}`,
+      );
+      // Build structured PanelAI technical, product, or HR interviewer prompt
+      const interviewerPrompt = buildInterviewerPrompt({
+        candidateName: candidate_name,
+        roleTitle: role_title,
+        track: interview_track,
+        resumeSummary: candidate_context,
+      });
+
+      const timeInstruction = duration_minutes
+        ? `\n\n# Time Constraints & Pacing\nThe interview session has a strict ${duration_minutes}-minute limit. Keep turns crisp and conclude gracefully within this timeframe.`
+        : '';
+
+      const combinedInstructions = `${interviewerPrompt.instructions}${timeInstruction}${
+        memoryContext ? `\n\n${memoryContext}` : ''
+      }`;
+
+      // Distinct voice per interviewer persona for rich panel experience
+      const ttsVoice =
+        interview_track === 'product'
+          ? 'shimmer' // Sarah Lin (Product)
+          : interview_track === 'hiring_manager'
+          ? 'nova'    // Elena Rostova (HR)
+          : 'alloy';  // Alex Chen (Technical)
+
+      const ttsEngine = new OpenAITTS({
+        model: 'tts-1',
+        voice: ttsVoice,
+      });
+
+      // Direct ultra-low latency fallback pipeline
+      agent = new Agent({
+        client,
+        instructions: combinedInstructions,
+        greeting: interviewerPrompt.greeting,
+        failureMessage: 'One moment, let me reconnect.',
+        maxHistory: 30,
+        // Optimized VAD for ultra-fast, snappy conversational voice turns
+        turnDetection: {
+          config: {
+            speech_threshold: 0.5,
+            start_of_speech: {
+              mode: 'vad',
+              vad_config: {
+                interrupt_duration_ms: 140, // Quick natural interruption
+                prefix_padding_ms: 200,    // Low audio buffer overhead
+              },
             },
-          },
-          end_of_speech: {
-            mode: 'vad',
-            vad_config: {
-              silence_duration_ms: 380,  // Fast 380ms turnaround without cutting off normal pauses
+            end_of_speech: {
+              mode: 'vad',
+              vad_config: {
+                silence_duration_ms: 380,  // Fast 380ms turnaround without cutting off normal pauses
+              },
             },
           },
         },
-      },
-      advancedFeatures: { enable_rtm: true, enable_tools: true },
-      parameters: {
-        // web client → ultra-low-latency chorus profile for minimum voice turnaround latency
-        audio_scenario: 'chorus',
-        data_channel: 'rtm',
-        enable_error_message: true,
-        enable_metrics: true,
-      },
-    })
-      .withStt(
-        new DeepgramSTT({
-          model: 'nova-3',
-          language: 'en',
-        }),
-      )
-      .withLlm(
-        new OpenAI({
-          model: 'gpt-4o-mini',
-          greetingMessage: interviewerPrompt.greeting,
-          failureMessage: 'Please give me a moment.',
-          maxHistory: 16,
-          params: {
-            max_tokens: 220, // Crisp 1-2 sentence questions without mid-sentence truncation
-            temperature: 0.6,
-            top_p: 0.9,
-          },
-        }),
-      )
-      .withTts(ttsEngine);
+        advancedFeatures: { enable_rtm: true, enable_tools: true },
+        parameters: {
+          // web client → ultra-low-latency chorus profile for minimum voice turnaround latency
+          audio_scenario: 'chorus',
+          data_channel: 'rtm',
+          enable_error_message: true,
+          enable_metrics: true,
+        },
+      })
+        .withStt(
+          new DeepgramSTT({
+            model: 'nova-3',
+            language: 'en',
+          }),
+        )
+        .withLlm(
+          new OpenAI({
+            model: 'gpt-4o-mini',
+            greetingMessage: interviewerPrompt.greeting,
+            failureMessage: 'Please give me a moment.',
+            maxHistory: 16,
+            params: {
+              max_tokens: 220, // Crisp 1-2 sentence questions without mid-sentence truncation
+              temperature: 0.6,
+              top_p: 0.9,
+            },
+          }),
+        )
+        .withTts(ttsEngine);
+    }
 
     // Binding remoteUids specifically to candidate UID ensures Agora routes candidate audio to Deepgram STT
     const candidateUidStr = String(requester_id);
@@ -213,6 +240,7 @@ export async function POST(request: NextRequest) {
       idleTimeout: 120, // 2 minutes to keep agent alive across brief page reloads
       expiresIn: ExpiresIn.hours(1),
       debug: false,
+      ...(pipelineId ? { pipelineId } : {}),
     });
 
     const agentId = await session.start();

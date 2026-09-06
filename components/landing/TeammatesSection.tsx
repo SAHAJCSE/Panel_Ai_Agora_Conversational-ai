@@ -16,7 +16,7 @@ const TEAMMATES = [
   {
     name: 'Ekjyot Kaur Malhotra',
     fallback: 'EK',
-    role: 'Student & Developer',
+    role: 'Full Stack Engineer',
     commudleUrl: 'https://www.commudle.com/users/ekjyot_45',
     githubUrl: 'https://github.com/Ekjyotkaur07',
     avatarUrl: 'https://github.com/Ekjyotkaur07.png',

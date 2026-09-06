@@ -12,6 +12,7 @@ export interface QuickstartConversationLayoutProps {
   elapsedFormatted: string;
   currentRoundIndex?: number;
   roundSecondsRemaining?: number;
+  totalMinutes?: number;
   latencyMs?: number;
   onEndConversation: () => void;
   isEnding?: boolean;
@@ -25,6 +26,7 @@ export function QuickstartConversationLayout({
   elapsedFormatted,
   currentRoundIndex = 0,
   roundSecondsRemaining = 180,
+  totalMinutes,
   latencyMs = 233,
   onEndConversation,
   isEnding = false,
@@ -51,6 +53,7 @@ export function QuickstartConversationLayout({
         elapsedFormatted={elapsedFormatted}
         currentRoundIndex={currentRoundIndex}
         roundSecondsRemaining={roundSecondsRemaining}
+        totalMinutes={totalMinutes}
       />
 
       {/* ── 3. Main Content Split: ~30% Left / 70% Right ── */}

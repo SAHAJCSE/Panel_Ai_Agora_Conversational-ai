@@ -116,8 +116,7 @@ export function InterviewIntakeModal({
       {isLoading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
           <Loader
-            size="lg"
-            title="Initializing AI Panel Mesh..."
+            prefix="loading"
             subtitle="Connecting Agora RTC audio channels and establishing round memory"
           />
         </div>

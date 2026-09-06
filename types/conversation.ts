@@ -54,6 +54,8 @@ export interface ClientStartRequest {
   duration_minutes?: number;
   candidate_context?: string;
   context_memory?: string;
+  pipeline_id?: string;
+  force_template?: boolean;
 }
 
 export interface StopConversationRequest {
@@ -83,6 +85,9 @@ export interface ConversationComponentProps {
   agoraData: AgoraTokenData;
   rtmClient: RTMClient;
   currentTrack?: InterviewTrack;
+  durationMinutes?: number;
+  candidateName?: string;
+  roleTitle?: string;
   onTokenWillExpire: (uid: string) => Promise<AgoraRenewalTokens>;
   onEndConversation: (
     scorecard?: InterviewScorecard,

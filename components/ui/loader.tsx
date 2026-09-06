@@ -1,133 +1,176 @@
 "use client";
 
 import React from "react";
-import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { MorphingSpinner } from "./morphing-spinner";
 
 export interface LoaderProps extends React.HTMLAttributes<HTMLDivElement> {
+  prefix?: string;
+  words?: string[];
   title?: string;
   subtitle?: string;
   size?: "sm" | "md" | "lg";
 }
 
+export const DEFAULT_LOADER_WORDS = [
+  "ai agents",
+  "agent 1",
+  "agent 2",
+  "agent 3",
+  "Ui",
+  "buttons",
+  "ai agents",
+];
+
 export function Loader({
-  title = "Configuring your account...",
-  subtitle = "Please wait while we prepare everything for you",
-  size = "md",
+  prefix = "loading",
+  words = DEFAULT_LOADER_WORDS,
+  title,
+  subtitle,
   className,
   ...props
 }: LoaderProps) {
-  const sizeConfig = {
-    sm: {
-      spinnerSize: "sm" as const,
-      container: "size-20",
-      titleClass: "text-sm/tight font-medium",
-      subtitleClass: "text-xs/relaxed",
-      spacing: "space-y-2",
-      maxWidth: "max-w-48",
-    },
-    md: {
-      spinnerSize: "lg" as const,
-      container: "size-32",
-      titleClass: "text-base/snug font-medium",
-      subtitleClass: "text-sm/relaxed",
-      spacing: "space-y-3",
-      maxWidth: "max-w-56",
-    },
-    lg: {
-      spinnerSize: "xl" as const,
-      container: "size-40",
-      titleClass: "text-lg/tight font-semibold",
-      subtitleClass: "text-base/relaxed",
-      spacing: "space-y-4",
-      maxWidth: "max-w-64",
-    },
-  };
-
-  const config = sizeConfig[size];
+  // If a legacy title was passed, use it as the prefix if prefix wasn't customized
+  const displayPrefix = title && prefix === "loading" ? title.toLowerCase().replace(/\.+$/, "") : prefix;
 
   return (
     <div
-      className={cn(
-        "flex flex-col items-center justify-center gap-6 p-8 text-slate-900 dark:text-white selection:bg-pink-500/30 selection:text-pink-300",
-        className
-      )}
+      className={cn("flex flex-col items-center justify-center gap-4 text-center", className)}
       {...props}
     >
-      {/* Morphing Spinner Container with Ambient Pulsing Glow */}
-      <motion.div
-        animate={{
-          scale: [1, 1.05, 1],
-        }}
-        className={cn("relative flex items-center justify-center", config.container)}
-        transition={{
-          duration: 3,
-          repeat: Number.POSITIVE_INFINITY,
-          ease: [0.4, 0, 0.6, 1],
-        }}
-      >
-        {/* Background Radial Glow */}
-        <div className="absolute inset-0 bg-pink-500/20 blur-xl rounded-full animate-pulse"></div>
+      <div className="styled-loader-wrapper">
+        <style>{`
+          .styled-loader-wrapper .card {
+            /* color used to softly clip top and bottom of the .words container */
+            --bg-color: #111;
+            background-color: var(--bg-color);
+            padding: 1rem 2rem;
+            border-radius: 1.25rem;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7), 0 0 25px -5px rgba(149, 106, 250, 0.35);
+          }
+          .styled-loader-wrapper .loader {
+            color: rgb(124, 124, 124);
+            font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-weight: 500;
+            font-size: 25px;
+            -webkit-box-sizing: content-box;
+            box-sizing: content-box;
+            height: 40px;
+            padding: 10px 10px;
+            display: -webkit-box;
+            display: -ms-flexbox;
+            display: flex;
+            align-items: center;
+            border-radius: 8px;
+          }
+          .styled-loader-wrapper .loader p {
+            margin: 0;
+            padding: 0;
+            line-height: 40px;
+          }
+          .styled-loader-wrapper .words {
+            overflow: hidden;
+            position: relative;
+            height: 40px;
+          }
+          .styled-loader-wrapper .words::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+              var(--bg-color) 10%,
+              transparent 30%,
+              transparent 70%,
+              var(--bg-color) 90%
+            );
+            z-index: 20;
+            pointer-events: none;
+          }
+          .styled-loader-wrapper .word {
+            display: block;
+            height: 40px;
+            line-height: 40px;
+            padding-left: 8px;
+            color: #956afa;
+            animation: spin_4991 6s infinite;
+            white-space: nowrap;
+          }
+          @keyframes spin_4991 {
+            0% {
+              transform: translateY(0%);
+            }
+            7% {
+              transform: translateY(-102%);
+            }
+            16.66% {
+              transform: translateY(-100%);
+            }
+            21% {
+              transform: translateY(-100%);
+            }
+            24% {
+              transform: translateY(-202%);
+            }
+            33.33% {
+              transform: translateY(-200%);
+            }
+            38% {
+              transform: translateY(-200%);
+            }
+            41% {
+              transform: translateY(-302%);
+            }
+            50% {
+              transform: translateY(-300%);
+            }
+            55% {
+              transform: translateY(-300%);
+            }
+            58% {
+              transform: translateY(-402%);
+            }
+            66.66% {
+              transform: translateY(-400%);
+            }
+            71% {
+              transform: translateY(-400%);
+            }
+            75% {
+              transform: translateY(-502%);
+            }
+            83.33% {
+              transform: translateY(-500%);
+            }
+            88% {
+              transform: translateY(-500%);
+            }
+            92% {
+              transform: translateY(-602%);
+            }
+            100% {
+              transform: translateY(-600%);
+            }
+          }
+        `}</style>
+        <div className="card">
+          <div className="loader">
+            <p>{displayPrefix}</p>
+            <div className="words">
+              {words.map((word, idx) => (
+                <span key={idx} className="word">
+                  {word}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
 
-        {/* Morphing Spinner core animation */}
-        <MorphingSpinner size={config.spinnerSize} />
-      </motion.div>
-
-      {/* Typography */}
-      <motion.div
-        animate={{
-          opacity: 1,
-          y: 0,
-        }}
-        className={cn("text-center", config.spacing, config.maxWidth)}
-        initial={{ opacity: 0, y: 12 }}
-        transition={{
-          delay: 0.2,
-          duration: 0.8,
-          ease: [0.4, 0, 0.2, 1],
-        }}
-      >
-        <motion.h1
-          className={cn(
-            config.titleClass,
-            "font-semibold text-slate-900 leading-[1.15] tracking-[-0.02em] antialiased dark:text-white"
-          )}
-        >
-          <motion.span
-            animate={{
-              opacity: [0.9, 0.65, 0.9],
-            }}
-            transition={{
-              duration: 3,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: [0.4, 0, 0.6, 1],
-            }}
-          >
-            {title}
-          </motion.span>
-        </motion.h1>
-
-        <motion.p
-          className={cn(
-            config.subtitleClass,
-            "font-normal text-slate-600 leading-[1.45] tracking-[-0.01em] antialiased dark:text-zinc-400"
-          )}
-        >
-          <motion.span
-            animate={{
-              opacity: [0.7, 0.45, 0.7],
-            }}
-            transition={{
-              duration: 3.5,
-              repeat: Number.POSITIVE_INFINITY,
-              ease: [0.4, 0, 0.6, 1],
-            }}
-          >
-            {subtitle}
-          </motion.span>
-        </motion.p>
-      </motion.div>
+      {subtitle && (
+        <p className="text-xs sm:text-sm text-zinc-400 font-mono tracking-wide max-w-sm animate-pulse">
+          {subtitle}
+        </p>
+      )}
     </div>
   );
 }

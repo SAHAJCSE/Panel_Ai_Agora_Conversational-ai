@@ -12,6 +12,7 @@ export interface PanelSwitcherProps {
   elapsedFormatted: string;
   currentRoundIndex?: number;
   roundSecondsRemaining?: number;
+  totalMinutes?: number;
 }
 
 export function PanelSwitcher({
@@ -19,6 +20,7 @@ export function PanelSwitcher({
   elapsedFormatted,
   currentRoundIndex = 0,
   roundSecondsRemaining = 180,
+  totalMinutes,
 }: PanelSwitcherProps) {
   const roundMins = Math.floor(roundSecondsRemaining / 60);
   const roundSecs = roundSecondsRemaining % 60;
@@ -77,8 +79,11 @@ export function PanelSwitcher({
         </div>
 
         <div className="hidden md:flex items-center gap-1 text-zinc-400">
-          <span>Total:</span>
+          <span>Elapsed:</span>
           <span className="text-zinc-200">{elapsedFormatted}</span>
+          {typeof totalMinutes === 'number' && (
+            <span className="text-zinc-500 font-normal">/ {totalMinutes}m</span>
+          )}
         </div>
       </div>
     </div>

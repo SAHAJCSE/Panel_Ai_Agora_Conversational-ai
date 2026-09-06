@@ -93,6 +93,9 @@ export default function ConversationComponent({
   agoraData,
   rtmClient,
   currentTrack = 'technical',
+  durationMinutes = 15,
+  candidateName,
+  roleTitle,
   onTokenWillExpire,
   onEndConversation,
   onSwitchTrack,
@@ -105,6 +108,24 @@ export default function ConversationComponent({
   const [isSwitchingTrack, setIsSwitchingTrack] = useState(false);
   const [isEnding, setIsEnding] = useState(false);
   const handoffCooldownRef = useRef(false);
+
+  // Dynamic per-round duration computed from user-selected durationMinutes
+  // For a 3-round interview loop, distributes total seconds:
+  // e.g. 15 mins -> Round 1: 5m15s (315s), Round 2: 5m15s (315s), Round 3: 4m30s (270s) [total 900s / 15m]
+  // 30 mins -> Round 1: 10m30s (630s), Round 2: 10m30s (630s), Round 3: 9m00s (540s) [total 1800s / 30m]
+  // 5 mins -> Round 1: 1m45s (105s), Round 2: 1m45s (105s), Round 3: 1m30s (90s) [total 300s / 5m]
+  const getRoundDurationSeconds = useCallback(
+    (roundIdx: number) => {
+      const totalSeconds = Math.max(60, (durationMinutes || 15) * 60);
+      if (PANEL_ROUNDS.length === 3) {
+        if (roundIdx === 0) return Math.floor(totalSeconds * 0.35);
+        if (roundIdx === 1) return Math.floor(totalSeconds * 0.35);
+        return Math.max(30, totalSeconds - Math.floor(totalSeconds * 0.35) * 2);
+      }
+      return Math.max(30, Math.floor(totalSeconds / (PANEL_ROUNDS.length || 1)));
+    },
+    [durationMinutes],
+  );
 
   // Elapsed interview timer with reload persistence
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(() => {
@@ -164,7 +185,7 @@ export default function ConversationComponent({
         }
       } catch {}
     }
-    return currentRound.durationSeconds;
+    return getRoundDurationSeconds(currentRoundIndex);
   });
 
   const [showTransitionOverlay, setShowTransitionOverlay] = useState(false);
@@ -673,13 +694,13 @@ export default function ConversationComponent({
 
       // 2. Advance round state
       setCurrentRoundIndex(nextIndex);
-      setRoundSecondsRemaining(nextRoundConfig.durationSeconds);
+      setRoundSecondsRemaining(getRoundDurationSeconds(nextIndex));
       setShowTransitionOverlay(false);
 
       // 3. Inform Agora signaling of round advance
       await transmitAgentPresenceContext(rtmClient, agoraData.channel, {
         track: nextRoundConfig.track,
-        candidateName: demoCandidate.name,
+        candidateName: candidateName || demoCandidate.name,
         handoffReason: `Autonomous advance to Round ${nextRoundConfig.roundNumber}: ${nextRoundConfig.title}`,
       });
 
@@ -697,7 +718,24 @@ export default function ConversationComponent({
       setShowTransitionOverlay(false);
       await handleEndConversation();
     }
-  }, [currentRoundIndex, rtmClient, agoraData.channel, onSwitchTrack, handleEndConversation]);
+  }, [currentRoundIndex, rtmClient, agoraData.channel, onSwitchTrack, handleEndConversation, getRoundDurationSeconds, candidateName]);
+
+  const activeCompletedRound = useMemo(
+    () => ({
+      ...currentRound,
+      durationSeconds: getRoundDurationSeconds(currentRoundIndex),
+    }),
+    [currentRound, currentRoundIndex, getRoundDurationSeconds],
+  );
+
+  const activeNextRound = useMemo(() => {
+    const next = PANEL_ROUNDS[currentRoundIndex + 1];
+    if (!next) return undefined;
+    return {
+      ...next,
+      durationSeconds: getRoundDurationSeconds(currentRoundIndex + 1),
+    };
+  }, [currentRoundIndex, getRoundDurationSeconds]);
 
   return (
     <>
@@ -706,6 +744,7 @@ export default function ConversationComponent({
         elapsedFormatted={elapsedFormatted}
         currentRoundIndex={currentRoundIndex}
         roundSecondsRemaining={roundSecondsRemaining}
+        totalMinutes={durationMinutes}
         latencyMs={233}
         isEnding={isEnding}
         onEndConversation={handleEndConversation}
@@ -743,8 +782,8 @@ export default function ConversationComponent({
 
       {showTransitionOverlay && (
         <RoundTransitionOverlay
-          completedRound={currentRound}
-          nextRound={PANEL_ROUNDS[currentRoundIndex + 1]}
+          completedRound={activeCompletedRound}
+          nextRound={activeNextRound}
           onContinue={() => void handleContinueRound()}
         />
       )}

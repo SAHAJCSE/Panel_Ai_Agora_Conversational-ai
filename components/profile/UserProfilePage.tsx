@@ -89,8 +89,7 @@ export interface UserProfileData {
   dailyInterviewActivity: Record<string, number>; // YYYY-MM-DD -> count
 }
 
-// --- DEFAULT / DEMO PROFILE DATA ---
-// --- DEFAULT / ZERO PROFILE DATA ---
+// --- DEFAULT / DEMO PROFILE DATA (Empty / Zero Activity by Default) ---
 const DEFAULT_PROFILE: UserProfileData = {
   name: 'Candidate',
   email: '',
@@ -114,42 +113,42 @@ const DEFAULT_PROFILE: UserProfileData = {
       id: 'first_interview',
       icon: '🏆',
       title: 'First Interview',
-      description: 'Completed your first AI interview',
+      description: 'Complete your first AI interview',
       unlocked: false,
     },
     {
       id: 'streak_7',
       icon: '🔥',
       title: '7 Day Streak',
-      description: 'Practiced for 7 consecutive days',
+      description: 'Practice for 7 consecutive days',
       unlocked: false,
     },
     {
       id: 'interviews_10',
       icon: '🎯',
       title: '10 Interviews',
-      description: 'Completed 10 interviews',
+      description: 'Complete 10 interviews',
       unlocked: false,
     },
     {
       id: 'consistent_candidate',
       icon: '⚡',
       title: 'Consistent Candidate',
-      description: 'Practiced 20+ days',
+      description: 'Practice 20+ days',
       unlocked: false,
     },
     {
       id: 'panel_pro',
       icon: '🚀',
       title: 'Panel Pro',
-      description: 'Completed interviews across all panel types',
+      description: 'Complete interviews across all panel types',
       unlocked: false,
     },
     {
       id: 'deep_diver',
       icon: '💎',
       title: 'Deep Diver',
-      description: 'Completed a 45-min full panel session',
+      description: 'Complete a full panel session',
       unlocked: false,
     },
   ],
@@ -465,10 +464,16 @@ export function UserProfilePage({ onStartInterview }: UserProfilePageProps) {
                     Overall session volume and interview track breakdown
                   </p>
                 </div>
-                <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-1.5">
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  <span>{profile.interviewsCompleted > 0 ? 'Top Candidate' : 'Real-time Tracking'}</span>
-                </div>
+                {profile.interviewsCompleted > 0 ? (
+                  <div className="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span>Top 12% Candidate</span>
+                  </div>
+                ) : (
+                  <div className="px-3 py-1 rounded-full bg-zinc-500/10 border border-zinc-500/20 text-zinc-500 dark:text-zinc-400 text-xs font-semibold flex items-center gap-1.5">
+                    <span>Ready to Practice</span>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
@@ -551,8 +556,8 @@ export function UserProfilePage({ onStartInterview }: UserProfilePageProps) {
                     </div>
                   </div>
 
-                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                    {profile.interviewsCompleted > 0 ? '+0.4 increase this week' : 'Recorded from completed sessions'}
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium">
+                    {profile.interviewsCompleted > 0 ? "+0.4 increase this week" : "No practice rounds yet"}
                   </p>
                 </div>
 
@@ -684,9 +689,28 @@ export function UserProfilePage({ onStartInterview }: UserProfilePageProps) {
                 </div>
               </div>
 
-              <div className="space-y-3">
-                {profile.recentInterviews.length > 0 ? (
-                  profile.recentInterviews.map((item) => (
+              {profile.recentInterviews.length === 0 ? (
+                <div className="py-10 px-6 rounded-xl border border-dashed border-zinc-200 dark:border-white/10 text-center flex flex-col items-center justify-center gap-3 bg-zinc-50/50 dark:bg-zinc-900/30">
+                  <div className="w-10 h-10 rounded-full bg-pink-500/10 dark:bg-pink-500/20 text-pink-500 flex items-center justify-center">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold text-slate-800 dark:text-zinc-200">No Interview Activity Yet</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm">
+                      Complete your first interview round with the AI panel. Your live evaluation, audio quote evidence, and heatmap activity will automatically appear here.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleStartInterviewAction}
+                    className="mt-1 inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-medium text-xs shadow-md transition-all active:scale-[0.98]"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-white" />
+                    <span>Take Your First Interview</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {profile.recentInterviews.map((item) => (
                     <div
                       key={item.id}
                       className="group p-4 rounded-xl bg-zinc-50 dark:bg-zinc-800/40 hover:bg-pink-500/5 dark:hover:bg-zinc-800/80 border border-zinc-200 dark:border-white/5 hover:border-pink-500/30 transition-all cursor-pointer flex items-center justify-between gap-4"
@@ -723,27 +747,9 @@ export function UserProfilePage({ onStartInterview }: UserProfilePageProps) {
                         <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-pink-500 group-hover:translate-x-1 transition-all" />
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="p-8 rounded-xl border border-dashed border-zinc-200 dark:border-white/10 text-center space-y-3">
-                    <Clock className="w-8 h-8 text-zinc-400 mx-auto opacity-50" />
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-bold text-slate-900 dark:text-white">No Interviews Completed Yet</h4>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400 max-w-sm mx-auto">
-                        Your practice sessions, panel ratings, and scorecard history will automatically record here after your first AI interview.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleStartInterviewAction}
-                      className="px-4 py-2 rounded-full bg-pink-500/10 hover:bg-pink-500/20 text-pink-600 dark:text-pink-300 border border-pink-500/30 text-xs font-semibold transition-all inline-flex items-center gap-1.5"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-current" />
-                      <span>Start Your First Interview</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
           </div>

@@ -1,13 +1,13 @@
 {
   "version": 1,
-  "lastUpdated": 1788553232148,
+  "lastUpdated": 1788676729675,
   "candidates": {
     "abhishek singh": {
       "candidateName": "Abhishek Singh",
       "roleTitle": "Senior Frontend Developer",
-      "targetDurationMinutes": 5,
+      "targetDurationMinutes": 15,
       "backgroundNotes": "5+ years engineering high-throughput React & Next.js web applications. Led ShopFlow storefront optimization reducing render latency by 61%. Deep expertise in performance, DOM reconciliation, state management, and edge streaming.",
-      "lastUpdated": 1788553232148,
+      "lastUpdated": 1788676729675,
       "rounds": [
         {
           "track": "technical",

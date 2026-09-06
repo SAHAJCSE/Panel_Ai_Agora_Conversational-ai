@@ -125,7 +125,12 @@ export async function getRecordedSessions(candidateEmailOrName?: string): Promis
     try {
       const raw = localStorage.getItem(userStorageKey);
       if (raw) {
-        sessions = JSON.parse(raw);
+        const parsed: RecordedInterviewRound[] = JSON.parse(raw);
+        // Filter out any legacy mock seed sessions that started with 'session-'
+        sessions = parsed.filter((s) => !s.id?.startsWith('session-'));
+        if (sessions.length !== parsed.length) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+        }
       }
     } catch (e) {
       console.warn('Failed to parse local profile sessions:', e);
@@ -392,7 +397,7 @@ export function computeRealProfileStats(
   }
 
   // Map Recent Interviews
-  const recentInterviews = sessions.slice(0, 5).map((s) => {
+  const recentInterviews = sessions.slice(0, 10).map((s) => {
     const tags: string[] = [];
     if (s.track === 'technical') tags.push('Technical');
     if (s.track === 'product') tags.push('Product');
