@@ -17,6 +17,7 @@ import { Loader } from '@/components/ui/loader';
 import { StitchLandingPage } from './landing/StitchLandingPage';
 import type { CandidateBriefingData } from './landing/InterviewIntakeModal';
 import { FinalAssessment } from './panel/FinalAssessment';
+import { supabase } from '@/lib/supabase';
 
 // Dynamically import the ConversationComponent with ssr disabled
 const ConversationComponent = dynamic(() => import('./ConversationComponent'), {
@@ -38,9 +39,15 @@ const AgoraProvider = dynamic(
         // one RTC client is ever created per session (useMemo creates two in StrictMode).
         const clientRef = useRef<ReturnType<
           typeof AgoraRTC.createClient
-      default: function Provider({ children }: { children: React.ReactNode }) {
+        > | null>(null);
+        if (!clientRef.current) {
+          clientRef.current = AgoraRTC.createClient({
+            mode: 'rtc',
+            codec: 'vp8',
+          });
+        }
         return (
-          <AgoraRTCProvider client={client}>
+          <AgoraRTCProvider client={clientRef.current}>
             {children}
           </AgoraRTCProvider>
         );

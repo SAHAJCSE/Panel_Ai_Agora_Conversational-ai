@@ -231,7 +231,7 @@ export function InterviewIntakeModal({
             </div>
 
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-8">
-              Enter the candidate's full name and target position. AI panelists customize questions based on this role profile.
+              Enter the candidate&apos;s full name and target position. AI panelists customize questions based on this role profile.
             </p>
 
             <div className="space-y-6">
